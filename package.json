@@ -3,6 +3,7 @@
   "displayName": "vscode-isomorphic-git",
   "description": "Add the isomorphic-git support to vscode-pwa",
   "version": "0.0.1",
+  "publisher": "0xgg",
   "engines": {
     "vscode": "^1.55.0"
   },
@@ -35,6 +36,7 @@
     "test": "node ./out/test/runTest.js"
   },
   "devDependencies": {
+    "@types/es6-promisify": "^6.0.0",
     "@types/glob": "^7.1.3",
     "@types/mocha": "^8.0.4",
     "@types/node": "^12.11.7",
@@ -52,6 +54,10 @@
     "webpack-cli": "^4.4.0"
   },
   "dependencies": {
+    "es6-promisify": "^6.1.1",
     "isomorphic-git": "^1.8.2"
-  }
+  },
+  "extensionDependencies": [
+    "0xgg.vscode-web-fs"
+  ]
 }

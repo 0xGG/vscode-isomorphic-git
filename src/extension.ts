@@ -1,26 +1,61 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
-import * as vscode from 'vscode';
+import * as git from "isomorphic-git";
+import * as vscode from "vscode";
+import { FileSystem } from "./fs";
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+  const webFSExtension = vscode.extensions.getExtension("0xgg.vscode-web-fs");
+  const webFSApi: any = webFSExtension?.exports;
+  console.log("webFSApi: ", webFSApi);
+  const fs = new FileSystem(webFSApi);
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-isomorphic-git" is now active!');
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      console.log("workspaceFolders: ", vscode.workspace.workspaceFolders);
+      vscode.workspace.workspaceFolders?.forEach(async (workspaceFolder) => {
+        const dir = workspaceFolder.uri.path;
+        let currentBranch: string | void;
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('vscode-isomorphic-git.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from vscode-isomorphic-git!');
-	});
-
-	context.subscriptions.push(disposable);
+        try {
+          currentBranch = await git.currentBranch({
+            fs,
+            dir,
+            fullname: false,
+          });
+        } catch (error) {
+          currentBranch = undefined;
+        }
+        console.log("currentBranch: ", currentBranch);
+        if (!currentBranch) {
+          console.log("init .git");
+          await git.init({
+            fs,
+            dir,
+            defaultBranch: "main",
+          });
+          console.log("done init .git, start checking out branch");
+          await git.checkout({
+            fs,
+            dir,
+            ref: "main",
+          });
+          console.log("done checking out branch");
+          try {
+            console.log(
+              "default branch ",
+              await git.currentBranch({ fs, dir, fullname: false })
+            );
+          } catch (error) {
+            console.log(error, "default branch not found");
+          }
+          console.log("new branches: ", await git.listBranches({ fs, dir }));
+        }
+      });
+    })
+  );
 }
 
 // this method is called when your extension is deactivated
