@@ -8,19 +8,20 @@
     "vscode": "^1.55.0"
   },
   "categories": [
-    "Other"
+    "SCM Providers"
   ],
   "activationEvents": [
-    "*"
+    "workspaceContains:.git",
+    "onCommand:isomorphic-git.init"
   ],
   "main": "./dist/extension.js",
   "browser": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "isomorphic-git.helloWorld",
-        "title": "Hello World",
-        "category": "isomorphic-git)"
+        "command": "isomorphic-git.init",
+        "title": "Initialize Repository",
+        "category": "isomorphic-git"
       }
     ]
   },

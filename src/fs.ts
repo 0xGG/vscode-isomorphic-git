@@ -250,6 +250,7 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
       });
   }
 
+  /*
   public lstat(
     filePath: string,
     opts: any,
@@ -262,6 +263,8 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
       undefined as any
     );
   }
+  */
+  public lstat = this.stat;
 
   public symlink(
     target: string,
