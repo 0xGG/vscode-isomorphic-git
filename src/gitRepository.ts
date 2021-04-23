@@ -22,15 +22,18 @@ export class GitRepository implements vscode.QuickDiffProvider {
 
   /**
    *
-   * @returns array of uri and whether the file is deleted
+   * @returns array of uri, whether the file is deleted, whether the file is staged
    */
-  async provideSourceControlledResources(): Promise<[vscode.Uri, boolean][]> {
+  async provideSourceControlledResources(): Promise<
+    [vscode.Uri, boolean, boolean][]
+  > {
     console.log(
       "* provideSourceControlledResources ",
       this.workspaceFolderUri.toString()
     );
     let status: [string, number, number, number][] = [];
     try {
+      // https://isomorphic-git.org/docs/en/statusMatrix
       status = await git.statusMatrix({
         fs: this.fs,
         dir: this.workspaceFolderUri.path,
@@ -44,7 +47,7 @@ export class GitRepository implements vscode.QuickDiffProvider {
       .filter(([filePath, s1, s2, s3]) => {
         return s1 === 0 || s2 !== 1;
       })
-      .map(([filePath, s1, s2]) => {
+      .map(([filePath, s1, s2, s3]) => {
         return [
           vscode.Uri.parse(
             `${this.workspaceFolderUri.scheme}:${path.join(
@@ -53,6 +56,7 @@ export class GitRepository implements vscode.QuickDiffProvider {
             )}`
           ),
           s1 === 1 && s2 === 0,
+          s3 === 2 || s3 === 3 || (s2 === 0 && s3 === 0),
         ];
       });
   }

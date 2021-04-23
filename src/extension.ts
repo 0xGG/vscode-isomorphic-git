@@ -8,7 +8,7 @@ import { GitDocumentContentProvider } from "./gitDocumentContentProvider";
 import { GIT_SCHEME } from "./gitRepository";
 import { GitSourceControl } from "./gitSourceControl";
 
-const gitSourceControlRegister = new Map<vscode.Uri, GitSourceControl>();
+const gitSourceControlRegister = new Map<string, GitSourceControl>();
 let gitDocumentContentProvider: GitDocumentContentProvider;
 
 // this method is called when your extension is activated
@@ -53,6 +53,71 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.commit", async () => {
+      vscode.window.showErrorMessage(
+        "isomorphic-git.commit command not implemented yet"
+      );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.refresh",
+      async (sourceControlPane: vscode.SourceControl) => {
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane.rootUri.toString()
+        );
+        if (gitSourceControl) {
+          gitSourceControl.tryUpdateResourceGroups();
+        } else {
+          vscode.window.showErrorMessage(
+            "isomorphic-git.commit command failed to find git repo: " +
+              sourceControlPane.rootUri.toString()
+          );
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.stage",
+      async (state: vscode.SourceControlResourceState) => {
+        console.log("isomorphic-git.stage: ", state);
+        const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
+        const error = () => {
+          vscode.window.showErrorMessage(
+            "Failed to git stage the file " + state.resourceUri.toString()
+          );
+        };
+        if (workspaceFolderUri) {
+          const gitSourceControl = gitSourceControlRegister.get(
+            workspaceFolderUri.toString()
+          );
+          if (gitSourceControl) {
+            gitSourceControl.stageFile(state.resourceUri);
+          } else {
+            console.error("didn't find gitSourceControl");
+            error();
+          }
+        } else {
+          console.error("didn't find workspaceFolderUri");
+          error();
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.stageAll",
+      async (group: vscode.SourceControlResourceGroup) => {
+        console.log("isomorphic-git.stageAll: ", group);
+      }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       console.log("workspaceFolders: ", vscode.workspace.workspaceFolders);
       try {
@@ -89,7 +154,7 @@ async function tryInitializeGitSourceControlForWorkspace(
       context,
       fs
     );
-    gitSourceControl.tryUpdateChangedGroup();
+    gitSourceControl.tryUpdateResourceGroups();
   } catch (error) {}
 }
 
@@ -99,14 +164,18 @@ async function registerGitSourceControl(
   fs: FileSystem
 ): Promise<GitSourceControl> {
   const gitSourceControl = new GitSourceControl(context, folderUri, fs);
-  if (gitSourceControlRegister.has(gitSourceControl.getWorkspaceFolderUri())) {
+  if (
+    gitSourceControlRegister.has(
+      gitSourceControl.getWorkspaceFolderUri().toString()
+    )
+  ) {
     const previousSourceControl = gitSourceControlRegister.get(
-      gitSourceControl.getWorkspaceFolderUri()
+      gitSourceControl.getWorkspaceFolderUri().toString()
     )!;
     previousSourceControl.dispose();
   }
   gitSourceControlRegister.set(
-    gitSourceControl.getWorkspaceFolderUri(),
+    gitSourceControl.getWorkspaceFolderUri().toString(),
     gitSourceControl
   );
   context.subscriptions.push(gitSourceControl);
@@ -114,11 +183,25 @@ async function registerGitSourceControl(
 }
 
 function unregisterGitSourceControl(folderUri: vscode.Uri): void {
-  if (gitSourceControlRegister.has(folderUri)) {
-    const previousSourceControl = gitSourceControlRegister.get(folderUri)!;
+  if (gitSourceControlRegister.has(folderUri.toString())) {
+    const previousSourceControl = gitSourceControlRegister.get(
+      folderUri.toString()
+    )!;
     previousSourceControl.dispose();
 
-    gitSourceControlRegister.delete(folderUri);
+    gitSourceControlRegister.delete(folderUri.toString());
+  }
+}
+
+function getWorkspaceUriByFileUri(uri: vscode.Uri): vscode.Uri | undefined {
+  for (let i = 0; i < vscode.workspace.workspaceFolders.length; i++) {
+    const workspaceFolder = vscode.workspace.workspaceFolders[i];
+    if (
+      workspaceFolder.uri.scheme === uri.scheme &&
+      uri.path.indexOf(workspaceFolder.uri.path) === 0
+    ) {
+      return workspaceFolder.uri;
+    }
   }
 }
 

@@ -1,10 +1,14 @@
+import * as git from "isomorphic-git";
+import * as path from "path";
 import * as vscode from "vscode";
 import { FileSystem } from "./fs";
 import { GitRepository } from "./gitRepository";
 
 export class GitSourceControl implements vscode.Disposable {
   private scm: vscode.SourceControl;
-  private changedResources: vscode.SourceControlResourceGroup;
+  private;
+  private indexGroup: vscode.SourceControlResourceGroup;
+  private workingTreeGroup: vscode.SourceControlResourceGroup;
   private gitRepository: GitRepository;
   private timeout?: NodeJS.Timer;
 
@@ -18,13 +22,21 @@ export class GitSourceControl implements vscode.Disposable {
       "isomorphic-git",
       workspaceFolderUri
     );
-    this.changedResources = this.scm.createResourceGroup(
+    this.indexGroup = this.scm.createResourceGroup("index", "Staged Changes");
+    // this.indexGroup.hideWhenEmpty = true;
+    this.workingTreeGroup = this.scm.createResourceGroup(
       "workingTree",
-      "isomorphic-git changes"
+      "Changes"
     );
     this.gitRepository = new GitRepository(workspaceFolderUri, fs);
     this.scm.quickDiffProvider = this.gitRepository;
     this.scm.inputBox.placeholder = "Message to commit";
+    this.scm.acceptInputCommand = {
+      command: "isomorphic-git.commit",
+      title: "Commit",
+      arguments: [this.workspaceFolderUri],
+      tooltip: "Commit your changes",
+    };
 
     const fileSystemWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(workspaceFolderUri, "*.*")
@@ -55,10 +67,10 @@ export class GitSourceControl implements vscode.Disposable {
     if (this.timeout) {
       clearTimeout(this.timeout);
     }
-    this.timeout = setTimeout(() => this.tryUpdateChangedGroup(), 500);
+    this.timeout = setTimeout(() => this.tryUpdateResourceGroups(), 500);
   }
 
-  async tryUpdateChangedGroup(): Promise<void> {
+  async tryUpdateResourceGroups(): Promise<void> {
     try {
       await this.updateChangedGroup();
     } catch (error) {
@@ -69,7 +81,8 @@ export class GitSourceControl implements vscode.Disposable {
   /** This is where the source control determines, which documents were updated, removed, and theoretically added. */
   async updateChangedGroup(): Promise<void> {
     // for simplicity we ignore which document was changed in this event and scan all of them
-    const changedResources: vscode.SourceControlResourceState[] = [];
+    const workingTreeGroup: vscode.SourceControlResourceState[] = [];
+    const indexGroup: vscode.SourceControlResourceState[] = [];
 
     const result = await this.gitRepository.provideSourceControlledResources();
     console.log(
@@ -77,15 +90,22 @@ export class GitSourceControl implements vscode.Disposable {
       result
     );
 
-    for (const [uri, deleted] of result) {
+    for (const [uri, deleted, staged] of result) {
       const resourceState = this.toSourceControlResourceState(uri, deleted);
-      changedResources.push(resourceState);
+      if (staged) {
+        indexGroup.push(resourceState);
+      } else {
+        workingTreeGroup.push(resourceState);
+      }
     }
 
-    this.changedResources.resourceStates = changedResources;
+    this.workingTreeGroup.resourceStates = workingTreeGroup;
+    this.indexGroup.resourceStates = indexGroup;
 
     // the number of modified resources needs to be assigned to the SourceControl.count filed to let VS Code show the number.
-    this.scm.count = this.changedResources.resourceStates.length;
+    this.scm.count =
+      this.workingTreeGroup.resourceStates.length +
+      this.indexGroup.resourceStates.length;
   }
 
   dispose() {
@@ -124,5 +144,15 @@ export class GitSourceControl implements vscode.Disposable {
     };
 
     return resourceState;
+  }
+
+  async stageFile(uri: vscode.Uri) {
+    console.log("stageFile " + uri.toString());
+    await git.add({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      filepath: path.relative(this.workspaceFolderUri.path, uri.path),
+    });
+    await this.tryUpdateResourceGroups();
   }
 }

@@ -21,9 +21,68 @@
       {
         "command": "isomorphic-git.init",
         "title": "Initialize Repository",
-        "category": "isomorphic-git"
+        "category": "isomorphic-git",
+        "icon": "$(add)"
+      },
+      {
+        "command": "isomorphic-git.commit",
+        "title": "Commit Local Changes",
+        "category": "isomorphic-git",
+        "icon": "$(check)"
+      },
+      {
+        "command": "isomorphic-git.refresh",
+        "title": "Refresh Git Status",
+        "category": "isomorphic-git",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "isomorphic-git.stage",
+        "title": "Stage Changes",
+        "category": "isomorphic-git",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "isomorphic-git.stageAll",
+        "title": "Stage All Changes",
+        "category": "isomorphic-git",
+        "icon": "$(add)"
+      },
+      {
+        "command": "isomorphic-git.unstage",
+        "title": "Unstage Changes",
+        "category": "isomorphic-git",
+        "icon": "$(remove)"
       }
     ],
+    "menus": {
+      "scm/title": [
+        {
+          "command": "isomorphic-git.commit",
+          "group": "navigation",
+          "when": "scmProvider == isomorphic-git"
+        },
+        {
+          "command": "isomorphic-git.refresh",
+          "group": "navigation",
+          "when": "scmProvider == isomorphic-git"
+        }
+      ],
+      "scm/resourceGroup/context": [
+        {
+          "command": "isomorphic-git.stageAll",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
+          "group": "inline"
+        }
+      ],
+      "scm/resourceState/context": [
+        {
+          "command": "isomorphic-git.stage",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
+          "group": "inline"
+        }
+      ]
+    },
     "viewsWelcome": [
       {
         "view": "scm",
