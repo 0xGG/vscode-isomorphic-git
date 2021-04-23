@@ -23,6 +23,12 @@
         "title": "Initialize Repository",
         "category": "isomorphic-git"
       }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "scm",
+        "contents": "The folder currently open doesn't have a git repository. You can initialize a repository which will enable source control features powered by [isomorphic-git](https://github.com/isomorphic-git/isomorphic-git/).  \n[Initialize Repository](command:isomorphic-git.init)  \n[Clone a Repository](command:isomorphic-git.clone)"
+      }
     ]
   },
   "scripts": {
