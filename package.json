@@ -53,6 +53,12 @@
         "title": "Unstage Changes",
         "category": "isomorphic-git",
         "icon": "$(remove)"
+      },
+      {
+        "command": "isomorphic-git.unstageAll",
+        "title": "Unstage All Changes",
+        "category": "isomorphic-git",
+        "icon": "$(remove)"
       }
     ],
     "menus": {
@@ -73,12 +79,22 @@
           "command": "isomorphic-git.stageAll",
           "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
           "group": "inline"
+        },
+        {
+          "command": "isomorphic-git.unstageAll",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == index",
+          "group": "inline"
         }
       ],
       "scm/resourceState/context": [
         {
           "command": "isomorphic-git.stage",
           "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
+          "command": "isomorphic-git.unstage",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == index",
           "group": "inline"
         }
       ]

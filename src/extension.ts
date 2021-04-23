@@ -97,11 +97,9 @@ export function activate(context: vscode.ExtensionContext) {
           if (gitSourceControl) {
             gitSourceControl.stageFile(state.resourceUri);
           } else {
-            console.error("didn't find gitSourceControl");
             error();
           }
         } else {
-          console.error("didn't find workspaceFolderUri");
           error();
         }
       }
@@ -112,7 +110,83 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.stageAll",
       async (group: vscode.SourceControlResourceGroup) => {
-        console.log("isomorphic-git.stageAll: ", group);
+        console.log("isomorphic-git.stageAll: ", group, group.resourceStates);
+        if (group.resourceStates.length) {
+          const workspaceFolderUri = getWorkspaceUriByFileUri(
+            group.resourceStates[0].resourceUri
+          );
+          const error = () => {
+            vscode.window.showErrorMessage("Failed to git unstage all files");
+          };
+          if (workspaceFolderUri) {
+            const gitSourceControl = gitSourceControlRegister.get(
+              workspaceFolderUri.toString()
+            );
+            if (gitSourceControl) {
+              gitSourceControl.stageAll(group.resourceStates);
+            } else {
+              error();
+            }
+          } else {
+            error();
+          }
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.unstage",
+      async (state: vscode.SourceControlResourceState) => {
+        console.log("isomorphic-git.unstage: ", state);
+        const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
+        const error = () => {
+          vscode.window.showErrorMessage(
+            "Failed to git unstage the file " + state.resourceUri.toString()
+          );
+        };
+        if (workspaceFolderUri) {
+          const gitSourceControl = gitSourceControlRegister.get(
+            workspaceFolderUri.toString()
+          );
+          if (gitSourceControl) {
+            gitSourceControl.unstageFile(state.resourceUri);
+          } else {
+            error();
+          }
+        } else {
+          error();
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.unstageAll",
+      async (group: vscode.SourceControlResourceGroup) => {
+        console.log("isomorphic-git.unstageAll: ", group, group.resourceStates);
+        if (group.resourceStates.length) {
+          const workspaceFolderUri = getWorkspaceUriByFileUri(
+            group.resourceStates[0].resourceUri
+          );
+          const error = () => {
+            vscode.window.showErrorMessage("Failed to git unstage all files");
+          };
+          if (workspaceFolderUri) {
+            const gitSourceControl = gitSourceControlRegister.get(
+              workspaceFolderUri.toString()
+            );
+            if (gitSourceControl) {
+              gitSourceControl.unstageAll(group.resourceStates);
+            } else {
+              error();
+            }
+          } else {
+            error();
+          }
+        }
       }
     )
   );

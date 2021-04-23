@@ -155,4 +155,52 @@ export class GitSourceControl implements vscode.Disposable {
     });
     await this.tryUpdateResourceGroups();
   }
+
+  async unstageFile(uri: vscode.Uri) {
+    console.log("unstageFile " + uri.toString());
+    await git.remove({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      filepath: path.relative(this.workspaceFolderUri.path, uri.path),
+    });
+    await this.tryUpdateResourceGroups();
+  }
+
+  async stageAll(resourceStates: vscode.SourceControlResourceState[]) {
+    console.log("stageAll ", resourceStates);
+    const promises: Promise<void>[] = [];
+    for (let i = 0; i < resourceStates.length; i++) {
+      promises.push(
+        git.add({
+          fs: this.fs,
+          dir: this.workspaceFolderUri.path,
+          filepath: path.relative(
+            this.workspaceFolderUri.path,
+            resourceStates[i].resourceUri.path
+          ),
+        })
+      );
+    }
+    await Promise.all(promises);
+    await this.tryUpdateResourceGroups();
+  }
+
+  async unstageAll(resourceStates: vscode.SourceControlResourceState[]) {
+    console.log("unstageAll ", resourceStates);
+    const promises: Promise<void>[] = [];
+    for (let i = 0; i < resourceStates.length; i++) {
+      promises.push(
+        git.remove({
+          fs: this.fs,
+          dir: this.workspaceFolderUri.path,
+          filepath: path.relative(
+            this.workspaceFolderUri.path,
+            resourceStates[i].resourceUri.path
+          ),
+        })
+      );
+    }
+    await Promise.all(promises);
+    await this.tryUpdateResourceGroups();
+  }
 }
