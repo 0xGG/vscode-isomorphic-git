@@ -69,10 +69,11 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
   }
 
   private constructVSCodeUriFromPath(filePath: string) {
-    if (filePath.startsWith("/$nativefs")) {
-      return Uri.parse(`nativefs:${filePath}`);
+    console.log("constructVSCodeUriFromPath ", filePath);
+    if (filePath.startsWith(this.api.nativeFSPrefix)) {
+      return Uri.parse(`nativefs:${filePath.replace(/\/+/g, "/")}`);
     } else {
-      return Uri.parse(`memfs:${filePath}`);
+      return Uri.parse(`memfs:${filePath}`, true);
     }
   }
 

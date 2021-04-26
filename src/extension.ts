@@ -18,7 +18,10 @@ export function activate(context: vscode.ExtensionContext) {
   const webFSExtension = vscode.extensions.getExtension("0xgg.vscode-web-fs");
   const webFSApi: any = webFSExtension?.exports;
   const fs = new FileSystem(webFSApi);
-  gitDocumentContentProvider = new GitDocumentContentProvider(fs);
+  gitDocumentContentProvider = new GitDocumentContentProvider(
+    fs,
+    webFSApi.nativeFSPrefix
+  );
 
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(

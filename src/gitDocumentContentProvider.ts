@@ -13,7 +13,10 @@ export class GitDocumentContentProvider
   implements TextDocumentContentProvider, Disposable {
   private _onDidChange = new EventEmitter<Uri>();
 
-  constructor(private readonly fs: FileSystem) {}
+  constructor(
+    private readonly fs: FileSystem,
+    private readonly nativeFSPrefix: string = "/nativefs-"
+  ) {}
 
   dispose(): void {
     this._onDidChange.dispose();
@@ -27,11 +30,20 @@ export class GitDocumentContentProvider
       return "Canceled";
     }
 
-    const dir = "/Welcome/";
-    const currentBranch = await git.currentBranch({
-      fs: this.fs,
-      dir,
-    });
+    console.log("* provideTextDocumentContent: ", uri.toString());
+    const dir = uri.path.startsWith(this.nativeFSPrefix)
+      ? uri.path.split("/").slice(0, 3).join("/") // nativefs
+      : uri.path; // memfs
+    let currentBranch: string | void;
+    try {
+      currentBranch = await git.currentBranch({
+        fs: this.fs,
+        dir,
+      });
+    } catch (error) {
+      return "";
+    }
+    console.log("** currentBranch: ", currentBranch);
     if (!currentBranch) {
       return "";
     }
@@ -41,14 +53,17 @@ export class GitDocumentContentProvider
         dir,
         ref: currentBranch,
       });
+      console.log("** commitOid: ", commitOid);
       const { blob } = await git.readBlob({
         fs: this.fs,
         dir,
         oid: commitOid,
         filepath: path.relative(dir, uri.path),
       });
+      console.log("** readBlob: ", Buffer.from(blob).toString("utf8"));
       return Buffer.from(blob).toString("utf8");
     } catch (error) {
+      console.error(error);
       return "";
     }
   }
