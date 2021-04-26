@@ -215,6 +215,62 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.clean",
+      async (state: vscode.SourceControlResourceState) => {
+        console.log("isomorphic-git.clean: ", state);
+        const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
+        const error = () => {
+          vscode.window.showErrorMessage(
+            "Failed to git clean the file " + state.resourceUri.toString()
+          );
+        };
+        if (workspaceFolderUri) {
+          const gitSourceControl = gitSourceControlRegister.get(
+            workspaceFolderUri.toString()
+          );
+          if (gitSourceControl) {
+            gitSourceControl.clean(state.resourceUri);
+          } else {
+            error();
+          }
+        } else {
+          error();
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.cleanAll",
+      async (group: vscode.SourceControlResourceGroup) => {
+        console.log("isomorphic-git.cleanAll: ", group, group.resourceStates);
+        if (group.resourceStates.length) {
+          const workspaceFolderUri = getWorkspaceUriByFileUri(
+            group.resourceStates[0].resourceUri
+          );
+          const error = () => {
+            vscode.window.showErrorMessage("Failed to git clean all files");
+          };
+          if (workspaceFolderUri) {
+            const gitSourceControl = gitSourceControlRegister.get(
+              workspaceFolderUri.toString()
+            );
+            if (gitSourceControl) {
+              gitSourceControl.cleanAll(group.resourceStates);
+            } else {
+              error();
+            }
+          } else {
+            error();
+          }
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       console.log("workspaceFolders: ", vscode.workspace.workspaceFolders);
       try {

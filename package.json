@@ -59,6 +59,18 @@
         "title": "Unstage All Changes",
         "category": "isomorphic-git",
         "icon": "$(remove)"
+      },
+      {
+        "command": "isomorphic-git.clean",
+        "title": "Discard Changes",
+        "category": "isomorphic-git",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "isomorphic-git.cleanAll",
+        "title": "Discard All Changes",
+        "category": "isomorphic-git",
+        "icon": "$(discard)"
       }
     ],
     "menus": {
@@ -76,6 +88,11 @@
       ],
       "scm/resourceGroup/context": [
         {
+          "command": "isomorphic-git.cleanAll",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
+        {
           "command": "isomorphic-git.stageAll",
           "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
           "group": "inline"
@@ -87,6 +104,11 @@
         }
       ],
       "scm/resourceState/context": [
+        {
+          "command": "isomorphic-git.clean",
+          "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",
+          "group": "inline"
+        },
         {
           "command": "isomorphic-git.stage",
           "when": "scmProvider == isomorphic-git && scmResourceGroup == workingTree",

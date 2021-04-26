@@ -167,6 +167,17 @@ export class GitSourceControl implements vscode.Disposable {
     }
   }
 
+  async clean(uri: vscode.Uri) {
+    console.log("clean: " + uri.toString());
+    await git.checkout({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      force: true,
+      filepaths: [path.relative(this.workspaceFolderUri.path, uri.path)],
+    });
+    await this.tryUpdateResourceGroups();
+  }
+
   async unstageFile(uri: vscode.Uri, refresh: boolean = true) {
     console.log("unstageFile " + uri.toString());
     await git.resetIndex({
@@ -197,6 +208,19 @@ export class GitSourceControl implements vscode.Disposable {
       promises.push(this.unstageFile(resourceStates[i].resourceUri, false));
     }
     await Promise.all(promises);
+    await this.tryUpdateResourceGroups();
+  }
+
+  async cleanAll(resourceStates: vscode.SourceControlResourceState[]) {
+    console.log("cleanAll ", resourceStates);
+    await git.checkout({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      force: true,
+      filepaths: resourceStates.map((state) =>
+        path.relative(this.workspaceFolderUri.path, state.resourceUri.path)
+      ),
+    });
     await this.tryUpdateResourceGroups();
   }
 
