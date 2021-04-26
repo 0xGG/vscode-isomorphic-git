@@ -53,25 +53,48 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("isomorphic-git.commit", async () => {
-      vscode.window.showErrorMessage(
-        "isomorphic-git.commit command not implemented yet"
-      );
-    })
+    vscode.commands.registerCommand(
+      "isomorphic-git.commit",
+      async (sourceControlPane: vscode.SourceControl) => {
+        console.log("isomorphic-git.commit ", sourceControlPane);
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : vscode.workspace.workspaceFolders[0].uri.toString()
+        );
+        if (!gitSourceControl) {
+          vscode.window.showErrorMessage("Failed to git commit");
+        } else {
+          let commitMessage = gitSourceControl.scm.inputBox.value;
+          if (!commitMessage) {
+            commitMessage = await vscode.window.showInputBox({
+              prompt: "Please provide a commit message",
+              placeHolder: "Message",
+            });
+          }
+          if (commitMessage.length) {
+            await gitSourceControl.commit(commitMessage);
+          }
+        }
+      }
+    )
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "isomorphic-git.refresh",
       async (sourceControlPane: vscode.SourceControl) => {
+        console.log("isomorphic-git.refresh ", sourceControlPane);
         const gitSourceControl = gitSourceControlRegister.get(
-          sourceControlPane.rootUri.toString()
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : vscode.workspace.workspaceFolders[0].uri.toString()
         );
         if (gitSourceControl) {
           gitSourceControl.tryUpdateResourceGroups();
         } else {
           vscode.window.showErrorMessage(
-            "isomorphic-git.commit command failed to find git repo: " +
+            "isomorphic-git.refresh command failed to find git repo: " +
               sourceControlPane.rootUri.toString()
           );
         }

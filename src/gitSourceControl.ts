@@ -5,8 +5,7 @@ import { FileSystem } from "./fs";
 import { GitRepository } from "./gitRepository";
 
 export class GitSourceControl implements vscode.Disposable {
-  private scm: vscode.SourceControl;
-  private;
+  public scm: vscode.SourceControl;
   private indexGroup: vscode.SourceControlResourceGroup;
   private workingTreeGroup: vscode.SourceControlResourceGroup;
   private gitRepository: GitRepository;
@@ -30,11 +29,11 @@ export class GitSourceControl implements vscode.Disposable {
     );
     this.gitRepository = new GitRepository(workspaceFolderUri, fs);
     this.scm.quickDiffProvider = this.gitRepository;
-    this.scm.inputBox.placeholder = "Message to commit";
+    this.scm.inputBox.placeholder = "Message to commit (Ctrl+Enter to commit)";
     this.scm.acceptInputCommand = {
       command: "isomorphic-git.commit",
       title: "Commit",
-      arguments: [this.workspaceFolderUri],
+      arguments: [this.scm],
       tooltip: "Commit your changes",
     };
 
@@ -146,40 +145,46 @@ export class GitSourceControl implements vscode.Disposable {
     return resourceState;
   }
 
-  async stageFile(uri: vscode.Uri) {
+  async stageFile(uri: vscode.Uri, refresh: boolean = true) {
     console.log("stageFile " + uri.toString());
-    await git.add({
-      fs: this.fs,
-      dir: this.workspaceFolderUri.path,
-      filepath: path.relative(this.workspaceFolderUri.path, uri.path),
-    });
-    await this.tryUpdateResourceGroups();
+    try {
+      await this.fs.promises.stat(uri.path);
+      await git.add({
+        fs: this.fs,
+        dir: this.workspaceFolderUri.path,
+        filepath: path.relative(this.workspaceFolderUri.path, uri.path),
+      });
+    } catch (error) {
+      await git.remove({
+        fs: this.fs,
+        dir: this.workspaceFolderUri.path,
+        filepath: path.relative(this.workspaceFolderUri.path, uri.path),
+      });
+    }
+    console.log("finished stageFile " + uri.toString());
+    if (refresh) {
+      await this.tryUpdateResourceGroups();
+    }
   }
 
-  async unstageFile(uri: vscode.Uri) {
+  async unstageFile(uri: vscode.Uri, refresh: boolean = true) {
     console.log("unstageFile " + uri.toString());
-    await git.remove({
+    await git.resetIndex({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
       filepath: path.relative(this.workspaceFolderUri.path, uri.path),
     });
-    await this.tryUpdateResourceGroups();
+    console.log("finished unstageFile " + uri.toString());
+    if (refresh) {
+      await this.tryUpdateResourceGroups();
+    }
   }
 
   async stageAll(resourceStates: vscode.SourceControlResourceState[]) {
     console.log("stageAll ", resourceStates);
     const promises: Promise<void>[] = [];
     for (let i = 0; i < resourceStates.length; i++) {
-      promises.push(
-        git.add({
-          fs: this.fs,
-          dir: this.workspaceFolderUri.path,
-          filepath: path.relative(
-            this.workspaceFolderUri.path,
-            resourceStates[i].resourceUri.path
-          ),
-        })
-      );
+      promises.push(this.stageFile(resourceStates[i].resourceUri, false));
     }
     await Promise.all(promises);
     await this.tryUpdateResourceGroups();
@@ -189,18 +194,29 @@ export class GitSourceControl implements vscode.Disposable {
     console.log("unstageAll ", resourceStates);
     const promises: Promise<void>[] = [];
     for (let i = 0; i < resourceStates.length; i++) {
-      promises.push(
-        git.remove({
-          fs: this.fs,
-          dir: this.workspaceFolderUri.path,
-          filepath: path.relative(
-            this.workspaceFolderUri.path,
-            resourceStates[i].resourceUri.path
-          ),
-        })
-      );
+      promises.push(this.unstageFile(resourceStates[i].resourceUri, false));
     }
     await Promise.all(promises);
     await this.tryUpdateResourceGroups();
+  }
+
+  async commit(commitMessage: string) {
+    const config = vscode.workspace.getConfiguration("isomorphic-git");
+    const authorName = config.get<string>("authorName") || "Anonymous";
+    const authorEmail =
+      config.get<string>("authorEmail") || "anonymous@git.com";
+    console.log("commit ", commitMessage, authorName, authorEmail);
+    const sha = await git.commit({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      message: commitMessage,
+      author: {
+        name: authorName,
+        email: authorEmail,
+      },
+    });
+    console.log("commited: ", sha);
+    await this.tryUpdateResourceGroups();
+    this.scm.inputBox.value = "";
   }
 }
