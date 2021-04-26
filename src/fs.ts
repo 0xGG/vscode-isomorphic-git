@@ -69,7 +69,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
   }
 
   private constructVSCodeUriFromPath(filePath: string) {
-    console.log("constructVSCodeUriFromPath ", filePath);
     if (filePath.startsWith(this.api.nativeFSPrefix)) {
       return Uri.parse(`nativefs:${filePath.replace(/\/+/g, "/")}`);
     } else {
@@ -82,7 +81,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     // opts: { mode: number },
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git mkdir ", filePath);
     this.api
       .createDirectory(this.constructVSCodeUriFromPath(filePath))
       .then(() => {
@@ -98,18 +96,15 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     // opts: any,
     callback: (error: Error | undefined, files: string[]) => void
   ) {
-    console.log("* isomorphic-git readdir ", filePath);
     this.api
       .readDirectory(this.constructVSCodeUriFromPath(filePath))
       .then((result: [string, FileType][]) => {
-        console.log("* isomorphic-git readdir result ", result);
         return callback(
           undefined,
           result.map(([file]) => file)
         );
       })
       .catch((error: Error) => {
-        console.log("* isomorphic-git readdir error ", error);
         return callback(error, []);
       });
   }
@@ -120,8 +115,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: any,
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git writeFile ", filePath, data);
-
     let content: Uint8Array;
     if (typeof data === "string") {
       content = this.textEncoder.encode(data);
@@ -134,11 +127,9 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
         overwrite: true,
       })
       .then(() => {
-        console.log("* isomorphic-git write file done ", filePath);
         callback();
       })
       .catch((error: Error) => {
-        console.log("* isomorphic-git write file error ", filePath, error);
         callback(error);
       });
   }
@@ -148,15 +139,9 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: { encoding: string } | string,
     callback: (error: Error | undefined, data: string | Uint8Array) => void
   ) {
-    console.log("* isomorphic-git readFile ", filePath);
-
     this.api
       .readFile(this.constructVSCodeUriFromPath(filePath))
       .then((data: Uint8Array) => {
-        console.log(
-          "* isomorphic-git readFile result ",
-          this.textDecoder.decode(data)
-        );
         if (
           opts === "utf8" ||
           (typeof opts === "object" && opts?.encoding === "utf8")
@@ -167,7 +152,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
         }
       })
       .catch((error: Error) => {
-        console.log("* isomorphic-git readFile error ", error);
         callback(error, "");
       });
   }
@@ -177,8 +161,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: any,
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git unlink ", filePath);
-
     this.api
       .delete(this.constructVSCodeUriFromPath(filePath), {
         recursive: true,
@@ -198,8 +180,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     newFilePath: string,
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git rename ", oldFilePath, newFilePath);
-
     this.api
       .rename(
         this.constructVSCodeUriFromPath(oldFilePath),
@@ -218,12 +198,9 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     // opts: StatOpts,
     callback: (error: Error | undefined, stats: Stats) => void
   ) {
-    console.log("* isomorphic-git stat ", filePath, this.api);
-
     this.api
       .stat(this.constructVSCodeUriFromPath(filePath))
       .then((stats: FileStat) => {
-        console.log("* isomorphic-git stat result ", stats);
         const newStats: Stats = {
           type:
             stats.type === FileType.Directory
@@ -246,7 +223,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
         callback(undefined, newStats);
       })
       .catch((error: Error) => {
-        console.log("* isomorphic-git stat error ", error);
         callback(new ENOENT(error.message), undefined as any);
       });
   }
@@ -257,8 +233,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: any,
     callback: (error: Error | undefined, stats: Stats) => void
   ) {
-    console.log("* isomorphic-git lstat ", filePath);
-
     return callback(
       new Error(`vscode-isomorphic-git: lstat not implemented`),
       undefined as any
@@ -272,8 +246,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     filePath: string,
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git symlink ", filePath);
-
     return callback(
       new Error(`vscode-isomorphis-git: symlink not implemented`)
     );
@@ -284,8 +256,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: any,
     callback: (error: Error | undefined, linkString: string) => void
   ) {
-    console.log("* isomorphic-git readlink ", filePath);
-
     return callback(
       new Error(`vscode-isomorphis-git: readlink not implemented`),
       ""
@@ -297,8 +267,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     opts: any,
     callback: (error?: Error) => void
   ) {
-    console.log("* isomorphic-git backFile ", filePath);
-
     return callback(
       new Error(`vscode-isomorphic-git: backFile not implemented`)
     );
@@ -308,8 +276,6 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
     filePath: string,
     callback: (error: Error | undefined, size: number) => void
   ) {
-    console.log("* isomorphic-git du ", filePath);
-
     return callback(new Error(`vscode-isomorphis-git: du not implemented`), 0);
   }
 }

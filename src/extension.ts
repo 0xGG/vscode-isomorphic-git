@@ -14,7 +14,6 @@ let gitDocumentContentProvider: GitDocumentContentProvider;
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-  console.log("Activated the vscode-isomorphic-git extension");
   const webFSExtension = vscode.extensions.getExtension("0xgg.vscode-web-fs");
   const webFSApi: any = webFSExtension?.exports;
   const fs = new FileSystem(webFSApi);
@@ -59,12 +58,9 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.commit",
       async (sourceControlPane: vscode.SourceControl) => {
-        console.log("isomorphic-git.commit ", sourceControlPane);
-        const gitSourceControl = gitSourceControlRegister.get(
-          sourceControlPane
-            ? sourceControlPane.rootUri.toString()
-            : vscode.workspace.workspaceFolders[0].uri.toString()
-        );
+        const gitSourceControl = sourceControlPane
+          ? gitSourceControlRegister.get(sourceControlPane.rootUri.toString())
+          : Array.from(gitSourceControlRegister.values())[0];
         if (!gitSourceControl) {
           vscode.window.showErrorMessage("Failed to git commit");
         } else {
@@ -87,12 +83,10 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.refresh",
       async (sourceControlPane: vscode.SourceControl) => {
-        console.log("isomorphic-git.refresh ", sourceControlPane);
-        const gitSourceControl = gitSourceControlRegister.get(
-          sourceControlPane
-            ? sourceControlPane.rootUri.toString()
-            : vscode.workspace.workspaceFolders[0].uri.toString()
-        );
+        const gitSourceControl = sourceControlPane
+          ? gitSourceControlRegister.get(sourceControlPane.rootUri.toString())
+          : Array.from(gitSourceControlRegister.values())[0];
+        // console.log("isomorphic-git.refresh: ", gitSourceControl);
         if (gitSourceControl) {
           gitSourceControl.tryUpdateResourceGroups();
         } else {
@@ -109,7 +103,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.stage",
       async (state: vscode.SourceControlResourceState) => {
-        console.log("isomorphic-git.stage: ", state);
         const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
         const error = () => {
           vscode.window.showErrorMessage(
@@ -136,7 +129,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.stageAll",
       async (group: vscode.SourceControlResourceGroup) => {
-        console.log("isomorphic-git.stageAll: ", group, group.resourceStates);
         if (group.resourceStates.length) {
           const workspaceFolderUri = getWorkspaceUriByFileUri(
             group.resourceStates[0].resourceUri
@@ -165,7 +157,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.unstage",
       async (state: vscode.SourceControlResourceState) => {
-        console.log("isomorphic-git.unstage: ", state);
         const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
         const error = () => {
           vscode.window.showErrorMessage(
@@ -192,7 +183,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.unstageAll",
       async (group: vscode.SourceControlResourceGroup) => {
-        console.log("isomorphic-git.unstageAll: ", group, group.resourceStates);
         if (group.resourceStates.length) {
           const workspaceFolderUri = getWorkspaceUriByFileUri(
             group.resourceStates[0].resourceUri
@@ -221,7 +211,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.clean",
       async (state: vscode.SourceControlResourceState) => {
-        console.log("isomorphic-git.clean: ", state);
         const workspaceFolderUri = getWorkspaceUriByFileUri(state.resourceUri);
         const error = () => {
           vscode.window.showErrorMessage(
@@ -248,7 +237,6 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.cleanAll",
       async (group: vscode.SourceControlResourceGroup) => {
-        console.log("isomorphic-git.cleanAll: ", group, group.resourceStates);
         if (group.resourceStates.length) {
           const workspaceFolderUri = getWorkspaceUriByFileUri(
             group.resourceStates[0].resourceUri
@@ -275,7 +263,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
-      console.log("workspaceFolders: ", vscode.workspace.workspaceFolders);
       try {
         e.added.forEach(async (workspaceFolder) => {
           tryInitializeGitSourceControlForWorkspace(

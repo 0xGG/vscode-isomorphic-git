@@ -27,10 +27,6 @@ export class GitRepository implements vscode.QuickDiffProvider {
   async provideSourceControlledResources(): Promise<
     [vscode.Uri, boolean, boolean][]
   > {
-    console.log(
-      "* provideSourceControlledResources ",
-      this.workspaceFolderUri.toString()
-    );
     let status: [string, number, number, number][] = [];
     try {
       // https://isomorphic-git.org/docs/en/statusMatrix
@@ -38,9 +34,8 @@ export class GitRepository implements vscode.QuickDiffProvider {
         fs: this.fs,
         dir: this.workspaceFolderUri.path,
       });
-      console.log("* Done getting statusMatrix: ", status);
     } catch (error) {
-      console.error("* Failed to get statusMatrix: ", error);
+      console.error("Failed to get statusMatrix: ", error);
     }
 
     return status

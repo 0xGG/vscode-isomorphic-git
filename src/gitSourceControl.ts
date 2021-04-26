@@ -62,7 +62,6 @@ export class GitSourceControl implements vscode.Disposable {
   }
 
   onResourceChange(_uri: vscode.Uri): void {
-    console.log("** onResourceChange: ", _uri);
     if (this.timeout) {
       clearTimeout(this.timeout);
     }
@@ -84,11 +83,6 @@ export class GitSourceControl implements vscode.Disposable {
     const indexGroup: vscode.SourceControlResourceState[] = [];
 
     const result = await this.gitRepository.provideSourceControlledResources();
-    console.log(
-      "** updateChangedGroup provideSourceControlledResources: ",
-      result
-    );
-
     for (const [uri, deleted, staged] of result) {
       const resourceState = this.toSourceControlResourceState(uri, deleted);
       if (staged) {
@@ -146,7 +140,6 @@ export class GitSourceControl implements vscode.Disposable {
   }
 
   async stageFile(uri: vscode.Uri, refresh: boolean = true) {
-    console.log("stageFile " + uri.toString());
     try {
       await this.fs.promises.stat(uri.path);
       await git.add({
@@ -161,14 +154,12 @@ export class GitSourceControl implements vscode.Disposable {
         filepath: path.relative(this.workspaceFolderUri.path, uri.path),
       });
     }
-    console.log("finished stageFile " + uri.toString());
     if (refresh) {
       await this.tryUpdateResourceGroups();
     }
   }
 
   async clean(uri: vscode.Uri) {
-    console.log("clean: " + uri.toString());
     await git.checkout({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
@@ -179,20 +170,17 @@ export class GitSourceControl implements vscode.Disposable {
   }
 
   async unstageFile(uri: vscode.Uri, refresh: boolean = true) {
-    console.log("unstageFile " + uri.toString());
     await git.resetIndex({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
       filepath: path.relative(this.workspaceFolderUri.path, uri.path),
     });
-    console.log("finished unstageFile " + uri.toString());
     if (refresh) {
       await this.tryUpdateResourceGroups();
     }
   }
 
   async stageAll(resourceStates: vscode.SourceControlResourceState[]) {
-    console.log("stageAll ", resourceStates);
     const promises: Promise<void>[] = [];
     for (let i = 0; i < resourceStates.length; i++) {
       promises.push(this.stageFile(resourceStates[i].resourceUri, false));
@@ -202,7 +190,6 @@ export class GitSourceControl implements vscode.Disposable {
   }
 
   async unstageAll(resourceStates: vscode.SourceControlResourceState[]) {
-    console.log("unstageAll ", resourceStates);
     const promises: Promise<void>[] = [];
     for (let i = 0; i < resourceStates.length; i++) {
       promises.push(this.unstageFile(resourceStates[i].resourceUri, false));
@@ -212,7 +199,6 @@ export class GitSourceControl implements vscode.Disposable {
   }
 
   async cleanAll(resourceStates: vscode.SourceControlResourceState[]) {
-    console.log("cleanAll ", resourceStates);
     await git.checkout({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
@@ -229,7 +215,6 @@ export class GitSourceControl implements vscode.Disposable {
     const authorName = config.get<string>("authorName") || "Anonymous";
     const authorEmail =
       config.get<string>("authorEmail") || "anonymous@git.com";
-    console.log("commit ", commitMessage, authorName, authorEmail);
     const sha = await git.commit({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
@@ -239,7 +224,6 @@ export class GitSourceControl implements vscode.Disposable {
         email: authorEmail,
       },
     });
-    console.log("commited: ", sha);
     await this.tryUpdateResourceGroups();
     this.scm.inputBox.value = "";
   }

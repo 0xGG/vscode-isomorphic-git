@@ -30,7 +30,6 @@ export class GitDocumentContentProvider
       return "Canceled";
     }
 
-    console.log("* provideTextDocumentContent: ", uri.toString());
     const dir = uri.path.startsWith(this.nativeFSPrefix)
       ? uri.path.split("/").slice(0, 3).join("/") // nativefs
       : uri.path; // memfs
@@ -43,7 +42,6 @@ export class GitDocumentContentProvider
     } catch (error) {
       return "";
     }
-    console.log("** currentBranch: ", currentBranch);
     if (!currentBranch) {
       return "";
     }
@@ -53,17 +51,14 @@ export class GitDocumentContentProvider
         dir,
         ref: currentBranch,
       });
-      console.log("** commitOid: ", commitOid);
       const { blob } = await git.readBlob({
         fs: this.fs,
         dir,
         oid: commitOid,
         filepath: path.relative(dir, uri.path),
       });
-      console.log("** readBlob: ", Buffer.from(blob).toString("utf8"));
       return Buffer.from(blob).toString("utf8");
     } catch (error) {
-      console.error(error);
       return "";
     }
   }
