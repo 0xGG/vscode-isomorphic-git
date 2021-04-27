@@ -38,11 +38,11 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
       filePath: string,
       opts: { encoding: string } | string
     ) => Promise<string | Uint8Array>;
-    unlink: (filePath: string, opts: any) => Promise<void>;
+    unlink: (filePath: string /*opts: any*/) => Promise<void>;
     rmdir: (dirPath: string, opts: any) => Promise<void>;
     rename: (oldFilePath: string, newFilePath: string) => Promise<void>;
     stat: (filePath: string /*opts: any*/) => Promise<Stats>;
-    lstat: (filePath: string, opts: any) => Promise<Stats>;
+    lstat: (filePath: string /*, opts: any*/) => Promise<Stats>;
     symlink: (target: string, filePath: string) => Promise<void>;
     readlink: (filePath: string, opts: any) => Promise<string>;
     backFile: (filePath: string, opts: any) => Promise<void>;
@@ -158,7 +158,7 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
 
   public unlink(
     filePath: string,
-    opts: any,
+    // opts: any,
     callback: (error?: Error) => void
   ) {
     this.api

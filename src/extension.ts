@@ -357,6 +357,111 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.checkout",
+      async (workspaceFolderUri: vscode.Uri) => {
+        workspaceFolderUri =
+          workspaceFolderUri ||
+          (await pickWorkspaceFolderUriWithGit("Choose a repository"));
+        if (!workspaceFolderUri) {
+          return;
+        }
+        const gitSourceControl = gitSourceControlRegister.get(
+          workspaceFolderUri.toString()
+        );
+        if (!gitSourceControl) {
+          return;
+        }
+        const branches = await gitSourceControl.listBranches();
+        const createNewBranchLabel = "$(plus) Create new branch";
+        const createNewBranchFromLabel = "$(plus) Create new branch from";
+        const pick = await vscode.window.showQuickPick(
+          [
+            { label: createNewBranchLabel },
+            {
+              label: createNewBranchFromLabel,
+            },
+            ...branches.map((branch) => {
+              return {
+                label: branch,
+              };
+            }),
+          ],
+          {
+            canPickMany: false,
+            placeHolder: "Select a ref to checkout",
+          }
+        );
+        if (pick) {
+          if (pick.label === createNewBranchLabel) {
+            const newBranchName = await vscode.window.showInputBox({
+              placeHolder: "Branch name",
+              prompt: "Please provide a new branch name",
+            });
+            if (newBranchName) {
+              await gitSourceControl.checkoutNewBranch(newBranchName);
+            }
+          } else if (pick.label === createNewBranchFromLabel) {
+            const newBranchName = await vscode.window.showInputBox({
+              placeHolder: "Branch name",
+              prompt: "Please provide a new branch name",
+            });
+            const ref = await vscode.window.showQuickPick(
+              branches.map((branch) => {
+                return {
+                  label: branch,
+                };
+              }),
+              {
+                placeHolder: `Select a ref to create the ${newBranchName} from`,
+              }
+            );
+            if (ref) {
+              await gitSourceControl.checkoutNewBranch(
+                newBranchName,
+                ref.label
+              );
+            }
+          } else {
+            await gitSourceControl.checkoutBranch(pick.label);
+          }
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.deleteBranch", async () => {
+      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit();
+      if (!workspaceFolderUri) {
+        return;
+      }
+      const gitSourceControl = gitSourceControlRegister.get(
+        workspaceFolderUri.toString()
+      );
+      if (!gitSourceControl) {
+        return;
+      }
+      const currentbranch = await gitSourceControl.currentBranch();
+      if (!currentbranch) {
+        return;
+      }
+      const branches = (await gitSourceControl.listBranches(false)).filter(
+        (b) => b !== currentbranch
+      );
+      if (branches.length) {
+        const pick = await vscode.window.showQuickPick(branches, {
+          canPickMany: false,
+          placeHolder: "Select a branch to delete",
+        });
+        if (pick) {
+          await gitSourceControl.deleteBranch(pick);
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       try {
         e.added.forEach(async (workspaceFolder) => {
@@ -450,7 +555,7 @@ function getUrisOfWorkspaceFoldersWithGit() {
 }
 
 async function pickWorkspaceFolderUriWithGit(
-  placeHolder: string
+  placeHolder: string = "Choose a repository"
 ): Promise<vscode.Uri | undefined> {
   const workspaceFolderUris = getUrisOfWorkspaceFoldersWithGit();
   let pick: string;

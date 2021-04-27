@@ -36,6 +36,7 @@ export class GitSourceControl implements vscode.Disposable {
       arguments: [this.scm],
       tooltip: "Commit your changes",
     };
+    this.refreshStatusBar();
 
     const fileSystemWatcher = vscode.workspace.createFileSystemWatcher(
       new vscode.RelativePattern(workspaceFolderUri, "*.*")
@@ -71,6 +72,7 @@ export class GitSourceControl implements vscode.Disposable {
   async tryUpdateResourceGroups(): Promise<void> {
     try {
       await this.updateChangedGroup();
+      await this.refreshStatusBar();
     } catch (error) {
       vscode.window.showErrorMessage(error);
     }
@@ -103,6 +105,33 @@ export class GitSourceControl implements vscode.Disposable {
 
   dispose() {
     this.scm.dispose();
+  }
+
+  private async refreshStatusBar() {
+    let currentBranch: string | void = "";
+    try {
+      currentBranch = await git.currentBranch({
+        fs: this.fs,
+        dir: this.workspaceFolderUri.path,
+        fullname: false,
+      });
+      if (!currentBranch) {
+        currentBranch = (
+          await git.resolveRef({
+            fs: this.fs,
+            dir: this.workspaceFolderUri.path,
+            ref: "HEAD",
+          })
+        ).slice(0, 8);
+      }
+      this.scm.statusBarCommands = [
+        {
+          command: "isomorphic-git.checkout",
+          arguments: [this.workspaceFolderUri],
+          title: `$(git-branch) ${currentBranch}`,
+        },
+      ];
+    } catch (error) {}
   }
 
   toSourceControlResourceState(
@@ -250,5 +279,89 @@ export class GitSourceControl implements vscode.Disposable {
       dir: this.workspaceFolderUri.path,
       remote: remoteName,
     });
+  }
+
+  async listBranches(includingRemotes: boolean = true) {
+    let branches: string[] = await git.listBranches({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+    });
+    if (includingRemotes) {
+      const remotes = await this.listRemotes();
+      for (let i = 0; i < remotes.length; i++) {
+        const { remote } = remotes[i];
+        const remoteBranches = (
+          await git.listBranches({
+            fs: this.fs,
+            dir: this.workspaceFolderUri.path,
+            remote: remote,
+          })
+        ).map((branch) => `${remote}/${branch}`);
+        branches = branches.concat(remoteBranches || []);
+      }
+    }
+
+    return branches;
+  }
+
+  /**
+   * Checkout an existing branch
+   * @param branchName
+   */
+  async checkoutBranch(branchName: string) {
+    await git.checkout({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      ref: branchName,
+    });
+    await this.tryUpdateResourceGroups();
+  }
+
+  async checkoutNewBranch(newBranchName: string, ref: string | void) {
+    if (!ref) {
+      try {
+        ref = await git.currentBranch({
+          fs: this.fs,
+          dir: this.workspaceFolderUri.path,
+          fullname: false,
+        });
+      } catch (error) {}
+    }
+    if (!ref) {
+      return; // Error
+    }
+    await git.checkout({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      ref: ref,
+    });
+    await git.branch({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      ref: newBranchName,
+      checkout: true,
+    });
+    await this.tryUpdateResourceGroups();
+  }
+
+  async currentBranch() {
+    try {
+      return await git.currentBranch({
+        fs: this.fs,
+        dir: this.workspaceFolderUri.path,
+        fullname: false,
+      });
+    } catch (error) {
+      return "";
+    }
+  }
+
+  async deleteBranch(branchName: string) {
+    await git.deleteBranch({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      ref: branchName,
+    });
+    await this.tryUpdateResourceGroups();
   }
 }

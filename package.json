@@ -2,11 +2,12 @@
   "name": "vscode-isomorphic-git",
   "displayName": "vscode-isomorphic-git",
   "description": "Add the isomorphic-git support to vscode-pwa",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "0xgg",
   "engines": {
     "vscode": "^1.55.0"
   },
+  "enableProposedApi": true,
   "categories": [
     "SCM Providers"
   ],
@@ -85,6 +86,16 @@
       {
         "command": "isomorphic-git.removeRemote",
         "title": "Remove Remote",
+        "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.checkout",
+        "title": "Checkout",
+        "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.deleteBranch",
+        "title": "Delete Branch",
         "category": "isomorphic-git"
       }
     ],

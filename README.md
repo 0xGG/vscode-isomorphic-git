@@ -4,5 +4,5 @@ This extension implements a minimal source control provider using [isomorphic-gi
 
 ## Reference
 
-* [vscode-extension-samples](https://github.com/microsoft/vscode-extension-samples/tree/main/source-control-sample)
+* [source-control-sample](https://github.com/microsoft/vscode-extension-samples/tree/main/source-control-sample)
 
