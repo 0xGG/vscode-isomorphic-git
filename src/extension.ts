@@ -58,9 +58,16 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.commit",
       async (sourceControlPane: vscode.SourceControl) => {
-        const gitSourceControl = sourceControlPane
-          ? gitSourceControlRegister.get(sourceControlPane.rootUri.toString())
-          : Array.from(gitSourceControlRegister.values())[0];
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (
+                await pickWorkspaceFolderUriWithGit(
+                  "Please pick the repository that you would like to commit to"
+                )
+              ).toString()
+        );
+
         if (!gitSourceControl) {
           vscode.window.showErrorMessage("Failed to git commit");
         } else {
@@ -83,16 +90,20 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.refresh",
       async (sourceControlPane: vscode.SourceControl) => {
-        const gitSourceControl = sourceControlPane
-          ? gitSourceControlRegister.get(sourceControlPane.rootUri.toString())
-          : Array.from(gitSourceControlRegister.values())[0];
-        // console.log("isomorphic-git.refresh: ", gitSourceControl);
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (
+                await pickWorkspaceFolderUriWithGit(
+                  "Please pick the repository that you would like to refresh"
+                )
+              ).toString()
+        );
         if (gitSourceControl) {
           gitSourceControl.tryUpdateResourceGroups();
         } else {
           vscode.window.showErrorMessage(
-            "isomorphic-git.refresh command failed to find git repo: " +
-              sourceControlPane.rootUri.toString()
+            "isomorphic-git.refresh command failed to find git repo"
           );
         }
       }
@@ -262,6 +273,90 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.openGitConfig",
+      async () => {
+        const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
+          "Pick workspace folder to initialize git repo in"
+        );
+        if (workspaceFolderUri) {
+          vscode.commands.executeCommand(
+            "vscode.open",
+            vscode.Uri.joinPath(workspaceFolderUri, "./.git/config"),
+            vscode.ViewColumn.Active
+          );
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.addRemote", async () => {
+      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
+        "Pick workspace folder to add remote to"
+      );
+      if (!workspaceFolderUri) {
+        return;
+      }
+      const remoteUrl = await vscode.window.showInputBox({
+        placeHolder:
+          "Please enter the Git url. We only support http(s):// protocol",
+      });
+      if (!remoteUrl || !remoteUrl.match(/^https?:\/\//)) {
+        return;
+      }
+      const remoteName = await vscode.window.showInputBox({
+        placeHolder: "Remote name",
+        prompt: "Please provide a remote name",
+      });
+      if (!remoteName) {
+        return;
+      }
+      const gitSourceControl = gitSourceControlRegister.get(
+        workspaceFolderUri.toString()
+      );
+      if (gitSourceControl) {
+        gitSourceControl.addRemote(remoteName, remoteUrl);
+      }
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.removeRemote", async () => {
+      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
+        "Pick workspace folder to add remote to"
+      );
+      if (!workspaceFolderUri) {
+        return;
+      }
+      const gitSourceControl = gitSourceControlRegister.get(
+        workspaceFolderUri.toString()
+      );
+      if (!gitSourceControl) {
+        return;
+      }
+      const remotes = await gitSourceControl.listRemotes();
+      if (remotes.length) {
+        const pick = await vscode.window.showQuickPick(
+          remotes.map(({ remote, url }) => {
+            return `${remote}: ${url}`;
+          }),
+          {
+            canPickMany: false,
+            placeHolder: "Please pick the remote that you would like to remove",
+          }
+        );
+        if (pick) {
+          const remoteName = pick.split(":")[0]?.trim();
+          if (remoteName) {
+            await gitSourceControl.removeRemote(remoteName);
+          }
+        }
+      }
+    })
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       try {
         e.added.forEach(async (workspaceFolder) => {
@@ -346,6 +441,34 @@ function getWorkspaceUriByFileUri(uri: vscode.Uri): vscode.Uri | undefined {
       return workspaceFolder.uri;
     }
   }
+}
+
+function getUrisOfWorkspaceFoldersWithGit() {
+  return Array.from(gitSourceControlRegister.keys()).map((p) =>
+    vscode.Uri.parse(p)
+  );
+}
+
+async function pickWorkspaceFolderUriWithGit(
+  placeHolder: string
+): Promise<vscode.Uri | undefined> {
+  const workspaceFolderUris = getUrisOfWorkspaceFoldersWithGit();
+  let pick: string;
+  if (!workspaceFolderUris.length) {
+    vscode.window.showErrorMessage(`No workspace folder with git found`);
+    return;
+  } else if (workspaceFolderUris.length === 1) {
+    pick = workspaceFolderUris[0].toString();
+  } else {
+    pick = await vscode.window.showQuickPick(
+      workspaceFolderUris.map((uri) => uri.toString()) || [],
+      {
+        canPickMany: false,
+        placeHolder: placeHolder,
+      }
+    );
+  }
+  return vscode.Uri.parse(pick);
 }
 
 // this method is called when your extension is deactivated

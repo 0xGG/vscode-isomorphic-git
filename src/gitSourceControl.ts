@@ -227,4 +227,28 @@ export class GitSourceControl implements vscode.Disposable {
     await this.tryUpdateResourceGroups();
     this.scm.inputBox.value = "";
   }
+
+  async addRemote(remoteName: string, remoteUrl: string) {
+    await git.addRemote({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      remote: remoteName,
+      url: remoteUrl,
+    });
+  }
+
+  async listRemotes() {
+    return await git.listRemotes({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+    });
+  }
+
+  async removeRemote(remoteName: string) {
+    await git.deleteRemote({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      remote: remoteName,
+    });
+  }
 }

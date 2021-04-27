@@ -71,6 +71,21 @@
         "title": "Discard All Changes",
         "category": "isomorphic-git",
         "icon": "$(discard)"
+      },
+      {
+        "command": "isomorphic-git.openGitConfig",
+        "title": "Open Git Config",
+        "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.addRemote",
+        "title": "Add Remote",
+        "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.removeRemote",
+        "title": "Remove Remote",
+        "category": "isomorphic-git"
       }
     ],
     "menus": {
