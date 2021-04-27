@@ -491,6 +491,7 @@ export function activate(context: vscode.ExtensionContext) {
           },
           (progress, token) => {
             gitOutputChannel.show();
+            gitOutputChannel.appendLine(`Cloning ${repo}`);
             progress.report({ increment: 0 });
             return git.clone({
               fs: fs,
@@ -543,9 +544,77 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("isomorphic-git.fetch", async () => {
-      console.log("fetch");
-    })
+    vscode.commands.registerCommand(
+      "isomorphic-git.fetch",
+      async (sourceControlPane: vscode.SourceControl) => {
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (
+                await pickWorkspaceFolderUriWithGit(
+                  "Please pick the repository that you would like to refresh"
+                )
+              ).toString()
+        );
+        if (!gitSourceControl) {
+          return;
+        }
+        const remotes = await gitSourceControl.listRemotes();
+        let remote: string;
+        let url: string;
+        if (!remotes.length) {
+          return;
+        } else if (remotes.length === 1) {
+          remote = remotes[0].remote;
+          url = remotes[0].url;
+        } else {
+          const pickRemote = await vscode.window.showQuickPick(
+            remotes.map(({ remote, url }) => {
+              return {
+                label: remote,
+                description: url,
+              };
+            }),
+            {
+              canPickMany: false,
+              placeHolder: "Pick the remote that you would like to fetch",
+            }
+          );
+          if (!pickRemote) {
+            return;
+          } else {
+            remote = pickRemote.label;
+            url = pickRemote.description;
+          }
+        }
+        const { username, password } = await getUsernameAndPasswordFromRepo(
+          url
+        );
+        const corsProxy = getCORSProxy();
+        gitOutputChannel.show();
+        gitOutputChannel.appendLine(`Fetching ${url}`);
+        await git.fetch({
+          fs: fs,
+          http: http,
+          dir: gitSourceControl.getWorkspaceFolderUri().path,
+          corsProxy,
+          singleBranch: false,
+          url,
+          remote,
+          tags: false,
+          onAuth: () => {
+            return {
+              username,
+              password,
+            };
+          },
+          onMessage: (message) => {
+            gitOutputChannel.appendLine(message);
+          },
+        });
+        gitOutputChannel.appendLine(`Done fetching ${url}`);
+      }
+    )
   );
 
   context.subscriptions.push(
@@ -614,6 +683,9 @@ export function activate(context: vscode.ExtensionContext) {
             },
             (progress, token) => {
               gitOutputChannel.show();
+              gitOutputChannel.appendLine(
+                `Pulling ${repo} ${remote} ${branch}`
+              );
               progress.report({ increment: 0 });
               return git.pull({
                 fs,
@@ -664,7 +736,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("isomorphic-git.pushTo", async () => {
-      console.log("pushTo");
+      vscode.window.showErrorMessage("isomorphic-git.pushTo not implemented");
     })
   );
 
