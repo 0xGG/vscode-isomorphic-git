@@ -392,7 +392,7 @@ export function activate(context: vscode.ExtensionContext) {
           ],
           {
             canPickMany: false,
-            placeHolder: "Select a ref to checkout",
+            placeHolder: `Select a ref to checkout for ${workspaceFolderUri.toString()}`,
           }
         );
         if (pick) {
@@ -490,6 +490,7 @@ export function activate(context: vscode.ExtensionContext) {
             cancellable: false,
           },
           (progress, token) => {
+            gitOutputChannel.show();
             progress.report({ increment: 0 });
             return git.clone({
               fs: fs,
@@ -511,7 +512,7 @@ export function activate(context: vscode.ExtensionContext) {
                 progress.report({
                   increment:
                     (gitProgress.loaded / (gitProgress.total || 100)) * 100,
-                  message: gitProgress.phase,
+                  message: "\n\n" + gitProgress.phase,
                 });
               },
             });
@@ -533,10 +534,137 @@ export function activate(context: vscode.ExtensionContext) {
             );
             tryInitializeGitSourceControlForWorkspace(uri, context, fs);
           },
-          () => {
+          (error) => {
+            console.error(error);
             vscode.window.showErrorMessage(`Failed to clone ${repo}`);
           }
         );
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.fetch", async () => {
+      console.log("fetch");
+    })
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.pullFrom",
+      async (sourceControlPane: vscode.SourceControl) => {
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (
+                await pickWorkspaceFolderUriWithGit(
+                  "Please pick the repository that you would like to refresh"
+                )
+              ).toString()
+        );
+        if (!gitSourceControl) {
+          return;
+        }
+        const remotes = await gitSourceControl.listRemotes();
+        if (!remotes.length) {
+          return;
+        }
+
+        const pickRemote = await vscode.window.showQuickPick(
+          remotes.map(({ remote, url }) => {
+            return {
+              label: remote,
+              description: url,
+            };
+          }),
+          {
+            canPickMany: false,
+            placeHolder: "Pick a remote to pull the branch from",
+          }
+        );
+        if (!pickRemote) {
+          return;
+        }
+        const remote = pickRemote.label;
+        const repo = pickRemote.description;
+        const branches = (
+          await gitSourceControl.listBranches(true)
+        ).filter((b) => b.startsWith(remote + "/"));
+        if (!branches.length) {
+          return;
+        }
+        let branch = await vscode.window.showQuickPick(branches, {
+          canPickMany: false,
+          placeHolder: "Pick a branch to pull from",
+        });
+        if (!branch) {
+          return;
+        }
+        branch = branch.replace(remote + "/", "");
+        const { username, password } = await getUsernameAndPasswordFromRepo(
+          repo
+        );
+        const corsProxy = getCORSProxy();
+        const { authorName, authorEmail } = getAuthorNameAndEmail();
+        vscode.window
+          .withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `Pulling ${repo}`,
+              cancellable: false,
+            },
+            (progress, token) => {
+              gitOutputChannel.show();
+              progress.report({ increment: 0 });
+              return git.pull({
+                fs,
+                http,
+                dir: gitSourceControl.getWorkspaceFolderUri().path,
+                onAuth: (url, auth) => {
+                  return {
+                    username,
+                    password,
+                  };
+                },
+                onMessage: (message) => {
+                  gitOutputChannel.appendLine(message);
+                },
+                onProgress: (gitProgress) => {
+                  progress.report({
+                    increment:
+                      (gitProgress.loaded / (gitProgress.total || 100)) * 100,
+                    message: "\n\n" + gitProgress.phase,
+                  });
+                },
+                corsProxy,
+                url: repo,
+                remote: remote,
+                remoteRef: branch,
+                author: {
+                  name: authorName,
+                  email: authorEmail,
+                },
+              });
+            }
+          )
+          .then(
+            () => {
+              vscode.window.showInformationMessage(
+                `Successfully pulled ${repo}`
+              );
+              gitSourceControl.tryUpdateResourceGroups();
+            },
+            (error) => {
+              console.error(error);
+              vscode.window.showErrorMessage(`Failed to pull ${repo}`);
+            }
+          );
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.pushTo", async () => {
+      console.log("pushTo");
     })
   );
 
@@ -682,6 +810,13 @@ async function getUsernameAndPasswordFromRepo(repoUrl: string) {
     });
   }
   return { username, password };
+}
+
+function getAuthorNameAndEmail() {
+  const config = vscode.workspace.getConfiguration("isomorphic-git");
+  const authorName = config.get<string>("authorName") || "Anonymous";
+  const authorEmail = config.get<string>("authorEmail") || "anonymous@git.com";
+  return { authorName, authorEmail };
 }
 
 function getCORSProxy() {
