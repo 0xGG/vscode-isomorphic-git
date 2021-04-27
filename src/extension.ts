@@ -64,11 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
         const gitSourceControl = gitSourceControlRegister.get(
           sourceControlPane
             ? sourceControlPane.rootUri.toString()
-            : (
-                await pickWorkspaceFolderUriWithGit(
-                  "Please pick the repository that you would like to commit to"
-                )
-              ).toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
         );
 
         if (!gitSourceControl) {
@@ -96,11 +92,7 @@ export function activate(context: vscode.ExtensionContext) {
         const gitSourceControl = gitSourceControlRegister.get(
           sourceControlPane
             ? sourceControlPane.rootUri.toString()
-            : (
-                await pickWorkspaceFolderUriWithGit(
-                  "Please pick the repository that you would like to refresh"
-                )
-              ).toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
         );
         if (gitSourceControl) {
           gitSourceControl.tryUpdateResourceGroups();
@@ -279,9 +271,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand(
       "isomorphic-git.openGitConfig",
       async () => {
-        const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
-          "Pick workspace folder to initialize git repo in"
-        );
+        const workspaceFolderUri = await pickWorkspaceFolderUriWithGit();
         if (workspaceFolderUri) {
           vscode.commands.executeCommand(
             "vscode.open",
@@ -295,9 +285,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("isomorphic-git.addRemote", async () => {
-      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
-        "Pick workspace folder to add remote to"
-      );
+      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit();
       if (!workspaceFolderUri) {
         return;
       }
@@ -326,9 +314,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("isomorphic-git.removeRemote", async () => {
-      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit(
-        "Pick workspace folder to add remote to"
-      );
+      const workspaceFolderUri = await pickWorkspaceFolderUriWithGit();
       if (!workspaceFolderUri) {
         return;
       }
@@ -364,8 +350,7 @@ export function activate(context: vscode.ExtensionContext) {
       "isomorphic-git.checkout",
       async (workspaceFolderUri: vscode.Uri) => {
         workspaceFolderUri =
-          workspaceFolderUri ||
-          (await pickWorkspaceFolderUriWithGit("Choose a repository"));
+          workspaceFolderUri || (await pickWorkspaceFolderUriWithGit());
         if (!workspaceFolderUri) {
           return;
         }
@@ -522,7 +507,7 @@ export function activate(context: vscode.ExtensionContext) {
         .then(
           () => {
             const uri = vscode.Uri.parse(`memfs:${dir}`);
-            vscode.window.showInformationMessage(`Successfully cloned ${repo}`);
+            vscode.window.showInformationMessage(`Done cloning ${repo}`);
             vscode.workspace.updateWorkspaceFolders(
               vscode.workspace.workspaceFolders
                 ? vscode.workspace.workspaceFolders.length
@@ -550,11 +535,7 @@ export function activate(context: vscode.ExtensionContext) {
         const gitSourceControl = gitSourceControlRegister.get(
           sourceControlPane
             ? sourceControlPane.rootUri.toString()
-            : (
-                await pickWorkspaceFolderUriWithGit(
-                  "Please pick the repository that you would like to refresh"
-                )
-              ).toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
         );
         if (!gitSourceControl) {
           return;
@@ -624,11 +605,7 @@ export function activate(context: vscode.ExtensionContext) {
         const gitSourceControl = gitSourceControlRegister.get(
           sourceControlPane
             ? sourceControlPane.rootUri.toString()
-            : (
-                await pickWorkspaceFolderUriWithGit(
-                  "Please pick the repository that you would like to refresh"
-                )
-              ).toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
         );
         if (!gitSourceControl) {
           return;
@@ -654,7 +631,7 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         const remote = pickRemote.label;
-        const repo = pickRemote.description;
+        const url = pickRemote.description;
         const branches = (
           await gitSourceControl.listBranches(true)
         ).filter((b) => b.startsWith(remote + "/"));
@@ -670,7 +647,7 @@ export function activate(context: vscode.ExtensionContext) {
         }
         branch = branch.replace(remote + "/", "");
         const { username, password } = await getUsernameAndPasswordFromRepo(
-          repo
+          url
         );
         const corsProxy = getCORSProxy();
         const { authorName, authorEmail } = getAuthorNameAndEmail();
@@ -678,19 +655,27 @@ export function activate(context: vscode.ExtensionContext) {
           .withProgress(
             {
               location: vscode.ProgressLocation.Notification,
-              title: `Pulling ${repo}`,
+              title: `Pulling from ${url} ${remote} ${branch}`,
               cancellable: false,
             },
             (progress, token) => {
               gitOutputChannel.show();
               gitOutputChannel.appendLine(
-                `Pulling ${repo} ${remote} ${branch}`
+                `Pulling from ${url} ${remote} ${branch}`
               );
               progress.report({ increment: 0 });
               return git.pull({
                 fs,
                 http,
                 dir: gitSourceControl.getWorkspaceFolderUri().path,
+                corsProxy,
+                url: url,
+                remote: remote,
+                remoteRef: branch,
+                author: {
+                  name: authorName,
+                  email: authorEmail,
+                },
                 onAuth: (url, auth) => {
                   return {
                     username,
@@ -707,27 +692,21 @@ export function activate(context: vscode.ExtensionContext) {
                     message: "\n\n" + gitProgress.phase,
                   });
                 },
-                corsProxy,
-                url: repo,
-                remote: remote,
-                remoteRef: branch,
-                author: {
-                  name: authorName,
-                  email: authorEmail,
-                },
               });
             }
           )
           .then(
             () => {
               vscode.window.showInformationMessage(
-                `Successfully pulled ${repo}`
+                `Done pulling from ${url} ${remote} ${branch}`
               );
               gitSourceControl.tryUpdateResourceGroups();
             },
             (error) => {
               console.error(error);
-              vscode.window.showErrorMessage(`Failed to pull ${repo}`);
+              vscode.window.showErrorMessage(
+                `Failed to pull from ${url} ${remote} ${branch}`
+              );
             }
           );
       }
@@ -735,9 +714,108 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
-    vscode.commands.registerCommand("isomorphic-git.pushTo", async () => {
-      vscode.window.showErrorMessage("isomorphic-git.pushTo not implemented");
-    })
+    vscode.commands.registerCommand(
+      "isomorphic-git.pushTo",
+      async (sourceControlPane: vscode.SourceControl) => {
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
+        );
+        if (!gitSourceControl) {
+          return;
+        }
+        const remotes = await gitSourceControl.listRemotes();
+        let remote: string;
+        let url: string;
+        if (!remotes.length) {
+          return;
+        } else if (remotes.length === 1) {
+          remote = remotes[0].remote;
+          url = remotes[0].url;
+        } else {
+          const pickRemote = await vscode.window.showQuickPick(
+            remotes.map(({ remote, url }) => {
+              return {
+                label: remote,
+                description: url,
+              };
+            }),
+            {
+              canPickMany: false,
+              placeHolder: "Pick the remote that you would like to fetch",
+            }
+          );
+          if (!pickRemote) {
+            return;
+          } else {
+            remote = pickRemote.label;
+            url = pickRemote.description;
+          }
+        }
+        const { username, password } = await getUsernameAndPasswordFromRepo(
+          url
+        );
+        const corsProxy = getCORSProxy();
+        const { authorName, authorEmail } = getAuthorNameAndEmail();
+        const currentBranch = await gitSourceControl.currentBranch();
+        if (!currentBranch) {
+          return;
+        }
+        vscode.window
+          .withProgress(
+            {
+              location: vscode.ProgressLocation.Notification,
+              title: `Pushing to ${url} ${remote} ${currentBranch}`,
+            },
+            (progress, token) => {
+              gitOutputChannel.show();
+              gitOutputChannel.appendLine(
+                `Pushing to ${url} ${remote} ${currentBranch}`
+              );
+              progress.report({ increment: 0 });
+              return git.push({
+                fs: fs,
+                http: http,
+                dir: gitSourceControl.getWorkspaceFolderUri().path,
+                remote: remote,
+                ref: currentBranch,
+                corsProxy,
+                onAuth: (url, auth) => {
+                  return {
+                    username,
+                    password,
+                  };
+                },
+                onMessage: (message) => {
+                  gitOutputChannel.appendLine(message);
+                },
+                onProgress: (gitProgress) => {
+                  progress.report({
+                    increment:
+                      (gitProgress.loaded / (gitProgress.total || 100)) * 100,
+                    message: "\n\n" + gitProgress.phase,
+                  });
+                },
+              });
+            }
+          )
+          .then(
+            () => {
+              vscode.window.showInformationMessage(
+                `Done pushing to ${url} ${remote} ${currentBranch}`
+              );
+              gitSourceControl.tryUpdateResourceGroups();
+            },
+            (error) => {
+              console.error(error);
+              vscode.window.showErrorMessage(
+                `Failed to push to ${url} ${remote} ${currentBranch}`
+              );
+            }
+          );
+      }
+    )
   );
 
   context.subscriptions.push(

@@ -208,7 +208,7 @@ export class FileSystem implements CallbackFsClient, PromiseFsClient {
               : stats.type === FileType.SymbolicLink
               ? "symlink"
               : "file",
-          mode: 0x777,
+          mode: 0, // TODO: we are unable to get mode for now.
           size: stats.size,
           ino: 0,
           mtimeMs: stats.mtime,
