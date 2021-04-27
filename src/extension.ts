@@ -1,6 +1,7 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as git from "isomorphic-git";
+import http from "isomorphic-git/http/web";
 import * as path from "path";
 import * as vscode from "vscode";
 import { FileSystem } from "./fs";
@@ -9,14 +10,16 @@ import { GIT_SCHEME } from "./gitRepository";
 import { GitSourceControl } from "./gitSourceControl";
 
 const gitSourceControlRegister = new Map<string, GitSourceControl>();
+let gitOutputChannel: vscode.OutputChannel;
 let gitDocumentContentProvider: GitDocumentContentProvider;
-
+let fs: FileSystem;
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
   const webFSExtension = vscode.extensions.getExtension("0xgg.vscode-web-fs");
   const webFSApi: any = webFSExtension?.exports;
-  const fs = new FileSystem(webFSApi);
+  gitOutputChannel = vscode.window.createOutputChannel("isomorphic-git");
+  fs = new FileSystem(webFSApi);
   gitDocumentContentProvider = new GitDocumentContentProvider(
     fs,
     webFSApi.nativeFSPrefix
@@ -462,6 +465,82 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("isomorphic-git.clone", async () => {
+      const repo = await vscode.window.showInputBox({
+        placeHolder: "Provide repository URL",
+        prompt: "We only support cloning http(s):// Git repository",
+      });
+      if (!repo) {
+        return;
+      }
+      if (!repo.match(/^https?:\/\//)) {
+        vscode.window.showErrorMessage(
+          "We only support http(s):// protocol Git repository"
+        );
+        return;
+      }
+      const { username, password } = await getUsernameAndPasswordFromRepo(repo);
+      const corsProxy = getCORSProxy();
+      const dir = repo.replace(/^https?:\/+/, "/").replace(/\.git$/, "");
+      vscode.window
+        .withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: `Cloning ${repo}`,
+            cancellable: false,
+          },
+          (progress, token) => {
+            progress.report({ increment: 0 });
+            return git.clone({
+              fs: fs,
+              http: http,
+              dir: dir,
+              corsProxy,
+              url: repo,
+              depth: 2,
+              onAuth: () => {
+                return {
+                  username,
+                  password,
+                };
+              },
+              onMessage: (message) => {
+                gitOutputChannel.appendLine(message);
+              },
+              onProgress: (gitProgress) => {
+                progress.report({
+                  increment:
+                    (gitProgress.loaded / (gitProgress.total || 100)) * 100,
+                  message: gitProgress.phase,
+                });
+              },
+            });
+          }
+        )
+        .then(
+          () => {
+            const uri = vscode.Uri.parse(`memfs:${dir}`);
+            vscode.window.showInformationMessage(`Successfully cloned ${repo}`);
+            vscode.workspace.updateWorkspaceFolders(
+              vscode.workspace.workspaceFolders
+                ? vscode.workspace.workspaceFolders.length
+                : 0,
+              null,
+              {
+                uri, // We only support saving to MemFS for now
+                name: path.basename(dir),
+              }
+            );
+            tryInitializeGitSourceControlForWorkspace(uri, context, fs);
+          },
+          () => {
+            vscode.window.showErrorMessage(`Failed to clone ${repo}`);
+          }
+        );
+    })
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       try {
         e.added.forEach(async (workspaceFolder) => {
@@ -574,6 +653,40 @@ async function pickWorkspaceFolderUriWithGit(
     );
   }
   return vscode.Uri.parse(pick);
+}
+
+interface Credential {
+  url: string;
+  username: string;
+  password: string;
+}
+
+async function getUsernameAndPasswordFromRepo(repoUrl: string) {
+  repoUrl = repoUrl.trim();
+  const config = vscode.workspace.getConfiguration("isomorphic-git");
+  const credentials = config.get<Credential[]>("credentials") || [];
+  let { username, password } = credentials.find((c) => c.url === repoUrl) || {
+    url: "",
+    username: "",
+    password: "",
+  };
+  if (!username) {
+    username = await vscode.window.showInputBox({
+      placeHolder: "Username",
+    });
+  }
+  if (!password) {
+    password = await vscode.window.showInputBox({
+      placeHolder: "Password",
+      prompt: `Password for username ${username}`,
+    });
+  }
+  return { username, password };
+}
+
+function getCORSProxy() {
+  const config = vscode.workspace.getConfiguration("isomorphic-git");
+  return config.get<string>("corsProxy");
 }
 
 // this method is called when your extension is deactivated

@@ -13,7 +13,9 @@
   ],
   "activationEvents": [
     "workspaceContains:.git",
-    "onCommand:isomorphic-git.init"
+    "onCommand:isomorphic-git.init",
+    "onFileSystem:memfs",
+    "onFileSystem:nativefs"
   ],
   "main": "./dist/extension.js",
   "browser": "./dist/extension.js",
@@ -97,6 +99,11 @@
         "command": "isomorphic-git.deleteBranch",
         "title": "Delete Branch",
         "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.clone",
+        "title": "Clone",
+        "category": "isomorphic-git"
       }
     ],
     "menus": {
@@ -168,7 +175,34 @@
         },
         "isomorphic-git.corsProxy": {
           "description": "The Git cors proxy. Please [check this](https://github.com/isomorphic-git/isomorphic-git#cors-support) for why do we need cors proxy.",
-          "default": "https://crossnote.app/cors/"
+          "default": "https://crossnote.app/cors/",
+          "type": "string"
+        },
+        "isomorphic-git.credentials": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "title": "inner objects",
+            "properties": {
+              "url": {
+                "type": "string",
+                "description": "The URL of the remote Git repository. Eg 'https://github.com/0xgg/vscode-isomorphic-git.git'",
+                "default": ""
+              },
+              "username": {
+                "type": "string",
+                "description": "The username",
+                "default": ""
+              },
+              "password": {
+                "type": "string",
+                "description": "The password",
+                "default": ""
+              }
+            }
+          },
+          "default": [],
+          "description": "Git credentials"
         }
       }
     }
