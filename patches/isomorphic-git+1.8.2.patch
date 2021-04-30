@@ -1,0 +1,18 @@
+diff --git a/node_modules/isomorphic-git/index.cjs b/node_modules/isomorphic-git/index.cjs
+index fc522b8..81d2797 100644
+--- a/node_modules/isomorphic-git/index.cjs
++++ b/node_modules/isomorphic-git/index.cjs
+@@ -8522,10 +8522,13 @@ async function mergeBlobs({
+     format,
+     markerSize,
+   });
++  /**
++   * @yiyi: Don't throw error
+   if (!cleanMerge) {
+     // all other types of conflicts fail
+     throw new MergeNotSupportedError()
+   }
++  */
+   const oid = await _writeObject({
+     fs,
+     gitdir,
