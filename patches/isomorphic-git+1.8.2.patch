@@ -1,13 +1,13 @@
-diff --git a/node_modules/isomorphic-git/index.cjs b/node_modules/isomorphic-git/index.cjs
-index fc522b8..81d2797 100644
---- a/node_modules/isomorphic-git/index.cjs
-+++ b/node_modules/isomorphic-git/index.cjs
-@@ -8522,10 +8522,13 @@ async function mergeBlobs({
+diff --git a/node_modules/isomorphic-git/index.js b/node_modules/isomorphic-git/index.js
+index 8d9845f..47c5887 100644
+--- a/node_modules/isomorphic-git/index.js
++++ b/node_modules/isomorphic-git/index.js
+@@ -8516,10 +8516,13 @@ async function mergeBlobs({
      format,
      markerSize,
    });
-+  /**
-+   * @yiyi: Don't throw error
++  /*
++   * @Yiyi: Don't throw error here
    if (!cleanMerge) {
      // all other types of conflicts fail
      throw new MergeNotSupportedError()

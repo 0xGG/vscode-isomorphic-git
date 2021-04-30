@@ -451,46 +451,40 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("isomorphic-git.clone", async () => {
-      const repo = await vscode.window.showInputBox({
+      const url = await vscode.window.showInputBox({
         placeHolder: "Provide repository URL",
         prompt: "We only support cloning http(s):// Git repository",
       });
-      if (!repo) {
+      if (!url) {
         return;
       }
-      if (!repo.match(/^https?:\/\//)) {
+      if (!url.match(/^https?:\/\//)) {
         vscode.window.showErrorMessage(
           "We only support http(s):// protocol Git repository"
         );
         return;
       }
-      const { username, password } = await getUsernameAndPasswordFromRepo(repo);
       const corsProxy = getCORSProxy();
-      const dir = repo.replace(/^https?:\/+/, "/").replace(/\.git$/, "");
+      const dir = url.replace(/^https?:\/+/, "/").replace(/\.git$/, "");
       vscode.window
         .withProgress(
           {
             location: vscode.ProgressLocation.Notification,
-            title: `Cloning ${repo}`,
+            title: `Cloning ${url}`,
             cancellable: false,
           },
           (progress, token) => {
             gitOutputChannel.show();
-            gitOutputChannel.appendLine(`Cloning ${repo}`);
+            gitOutputChannel.appendLine(`Cloning ${url}`);
             progress.report({ increment: 0 });
             return git.clone({
               fs: fs,
               http: http,
               dir: dir,
               corsProxy,
-              url: repo,
-              depth: 2,
-              onAuth: () => {
-                return {
-                  username,
-                  password,
-                };
-              },
+              url: url,
+              // depth: 2,
+              onAuthFailure: createOnAuthFailure(),
               onMessage: (message) => {
                 gitOutputChannel.appendLine(message);
               },
@@ -507,7 +501,7 @@ export function activate(context: vscode.ExtensionContext) {
         .then(
           () => {
             const uri = vscode.Uri.parse(`memfs:${dir}`);
-            vscode.window.showInformationMessage(`Done cloning ${repo}`);
+            vscode.window.showInformationMessage(`Done cloning ${url}`);
             vscode.workspace.updateWorkspaceFolders(
               vscode.workspace.workspaceFolders
                 ? vscode.workspace.workspaceFolders.length
@@ -522,7 +516,7 @@ export function activate(context: vscode.ExtensionContext) {
           },
           (error) => {
             console.error(error);
-            vscode.window.showErrorMessage(`Failed to clone ${repo}`);
+            vscode.window.showErrorMessage(`Failed to clone ${url}`);
           }
         );
     })
@@ -568,9 +562,6 @@ export function activate(context: vscode.ExtensionContext) {
             url = pickRemote.description;
           }
         }
-        const { username, password } = await getUsernameAndPasswordFromRepo(
-          url
-        );
         const corsProxy = getCORSProxy();
         gitOutputChannel.show();
         gitOutputChannel.appendLine(`Fetching ${url}`);
@@ -583,12 +574,7 @@ export function activate(context: vscode.ExtensionContext) {
           url,
           remote,
           tags: false,
-          onAuth: () => {
-            return {
-              username,
-              password,
-            };
-          },
+          onAuthFailure: createOnAuthFailure(),
           onMessage: (message) => {
             gitOutputChannel.appendLine(message);
           },
@@ -646,9 +632,6 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
         branch = branch.replace(remote + "/", "");
-        const { username, password } = await getUsernameAndPasswordFromRepo(
-          url
-        );
         const corsProxy = getCORSProxy();
         const { authorName, authorEmail } = getAuthorNameAndEmail();
         vscode.window
@@ -676,12 +659,7 @@ export function activate(context: vscode.ExtensionContext) {
                   name: authorName,
                   email: authorEmail,
                 },
-                onAuth: (url, auth) => {
-                  return {
-                    username,
-                    password,
-                  };
-                },
+                onAuthFailure: createOnAuthFailure(),
                 onMessage: (message) => {
                   gitOutputChannel.appendLine(message);
                 },
@@ -753,11 +731,7 @@ export function activate(context: vscode.ExtensionContext) {
             url = pickRemote.description;
           }
         }
-        const { username, password } = await getUsernameAndPasswordFromRepo(
-          url
-        );
         const corsProxy = getCORSProxy();
-        const { authorName, authorEmail } = getAuthorNameAndEmail();
         const currentBranch = await gitSourceControl.currentBranch();
         if (!currentBranch) {
           return;
@@ -781,12 +755,7 @@ export function activate(context: vscode.ExtensionContext) {
                 remote: remote,
                 ref: currentBranch,
                 corsProxy,
-                onAuth: (url, auth) => {
-                  return {
-                    username,
-                    password,
-                  };
-                },
+                onAuthFailure: createOnAuthFailure(),
                 onMessage: (message) => {
                   gitOutputChannel.appendLine(message);
                 },
@@ -972,6 +941,22 @@ function getAuthorNameAndEmail() {
 function getCORSProxy() {
   const config = vscode.workspace.getConfiguration("isomorphic-git");
   return config.get<string>("corsProxy");
+}
+
+function createOnAuthFailure(allowedFailureTime = 3) {
+  let failureTime = 0;
+  return async function (url: string, auth: git.GitAuth): Promise<git.GitAuth> {
+    failureTime++;
+    if (failureTime >= allowedFailureTime) {
+      return { cancel: true };
+    } else {
+      const { username, password } = await getUsernameAndPasswordFromRepo(url);
+      return {
+        username,
+        password,
+      };
+    }
+  };
 }
 
 // this method is called when your extension is deactivated
