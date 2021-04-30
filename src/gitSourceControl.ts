@@ -239,11 +239,16 @@ export class GitSourceControl implements vscode.Disposable {
     await this.tryUpdateResourceGroups();
   }
 
-  async commit(commitMessage: string) {
+  private getAuthorNameAndEmail() {
     const config = vscode.workspace.getConfiguration("isomorphic-git");
     const authorName = config.get<string>("authorName") || "Anonymous";
     const authorEmail =
       config.get<string>("authorEmail") || "anonymous@git.com";
+    return { authorName, authorEmail };
+  }
+
+  async commit(commitMessage: string) {
+    const { authorName, authorEmail } = this.getAuthorNameAndEmail();
     const sha = await git.commit({
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
@@ -361,6 +366,21 @@ export class GitSourceControl implements vscode.Disposable {
       fs: this.fs,
       dir: this.workspaceFolderUri.path,
       ref: branchName,
+    });
+    await this.tryUpdateResourceGroups();
+  }
+
+  async mergeBranch(branchName: string) {
+    const { authorName, authorEmail } = this.getAuthorNameAndEmail();
+    await git.merge({
+      fs: this.fs,
+      dir: this.workspaceFolderUri.path,
+      // ours: (await this.currentBranch()) || "",
+      theirs: branchName,
+      author: {
+        name: authorName,
+        email: authorEmail,
+      },
     });
     await this.tryUpdateResourceGroups();
   }

@@ -119,6 +119,11 @@
         "command": "isomorphic-git.fetch",
         "title": "Fetch",
         "category": "isomorphic-git"
+      },
+      {
+        "command": "isomorphic-git.merge",
+        "title": "Merge Branch",
+        "category": "isomorphic-git"
       }
     ],
     "menus": {
@@ -156,6 +161,11 @@
         {
           "command": "isomorphic-git.checkout",
           "group": "1_header@5",
+          "when": "scmProvider == isomorphic-git"
+        },
+        {
+          "command": "isomorphic-git.merge",
+          "group": "1_header@6",
           "when": "scmProvider == isomorphic-git"
         }
       ],

@@ -29,21 +29,26 @@ export class GitDocumentContentProvider
     if (token.isCancellationRequested) {
       return "Canceled";
     }
-
     const dir = uri.path.startsWith(this.nativeFSPrefix)
       ? uri.path.split("/").slice(0, 3).join("/") // nativefs
-      : uri.path; // memfs
+      : uri.path.split("/").slice(0, 2).join("/"); // memfs
     let currentBranch: string | void;
     try {
       currentBranch = await git.currentBranch({
         fs: this.fs,
         dir,
       });
-    } catch (error) {
-      return "";
-    }
+    } catch (error) {}
     if (!currentBranch) {
-      return "";
+      try {
+        currentBranch = await git.resolveRef({
+          fs: this.fs,
+          dir: dir,
+          ref: "HEAD",
+        });
+      } catch (error) {
+        return "";
+      }
     }
     try {
       const commitOid = await git.resolveRef({

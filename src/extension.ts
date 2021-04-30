@@ -483,7 +483,7 @@ export function activate(context: vscode.ExtensionContext) {
               dir: dir,
               corsProxy,
               url: url,
-              // depth: 2,
+              depth: 1,
               onAuthFailure: createOnAuthFailure(),
               onMessage: (message) => {
                 gitOutputChannel.appendLine(message);
@@ -788,6 +788,31 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "isomorphic-git.merge",
+      async (sourceControlPane: vscode.SourceControl) => {
+        const gitSourceControl = gitSourceControlRegister.get(
+          sourceControlPane
+            ? sourceControlPane.rootUri.toString()
+            : (await pickWorkspaceFolderUriWithGit()).toString()
+        );
+        if (!gitSourceControl) {
+          return;
+        }
+        const branches = await gitSourceControl.listBranches(true);
+        if (!branches.length) {
+          return;
+        }
+        const pickBranch = await vscode.window.showQuickPick(branches, {
+          canPickMany: false,
+          placeHolder: "Select a branch to merge from",
+        });
+        await gitSourceControl.mergeBranch(pickBranch);
+      }
+    )
+  );
+
+  context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders((e) => {
       try {
         e.added.forEach(async (workspaceFolder) => {
@@ -948,6 +973,7 @@ function createOnAuthFailure(allowedFailureTime = 3) {
   return async function (url: string, auth: git.GitAuth): Promise<git.GitAuth> {
     failureTime++;
     if (failureTime >= allowedFailureTime) {
+      vscode.window.showErrorMessage(`Too many authentication failures`);
       return { cancel: true };
     } else {
       const { username, password } = await getUsernameAndPasswordFromRepo(url);
